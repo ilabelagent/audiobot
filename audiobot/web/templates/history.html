@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>History - Audio Cleaner</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="banner"><span id="verse-text">“Let everything that has breath praise the LORD.” — Psalm 150:6</span></div>
+      <h1>Job History</h1>
+      <a class="btn" href="/">Back</a>
+      <div class="card">
+        <table style="width:100%; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th style="text-align:left;">ID</th>
+              <th style="text-align:left;">When</th>
+              <th style="text-align:left;">Kind</th>
+              <th style="text-align:left;">Input</th>
+              <th style="text-align:left;">Output</th>
+              <th style="text-align:left;">OK</th>
+              <th style="text-align:left;">RMS</th>
+              <th style="text-align:left;">Peak</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for j in jobs %}
+              <tr style="border-top:1px solid #2a2f3a;">
+                <td>{{ j.id }}</td>
+                <td>{{ j.created_at }}</td>
+                <td>{{ j.kind }}</td>
+                <td title="{{ j.input_path }}">{{ j.input_path }}</td>
+                <td title="{{ j.output_path }}">{{ j.output_path }}</td>
+                <td>{{ j.ok }}</td>
+                <td>{{ j.metrics.get('rms') if j.metrics and 'rms' in j.metrics else '' }}</td>
+                <td>{{ j.metrics.get('peak') if j.metrics and 'peak' in j.metrics else '' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </body>
+  </html>
