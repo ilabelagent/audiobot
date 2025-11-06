@@ -1,0 +1,10 @@
+google-cloud-speech
+scipy
+google-generativeai
+torch
+pytorch-lightning
+torchaudio
+soundfile
+librosa
+google-cloud-aiplatform
+google-cloud-storage
