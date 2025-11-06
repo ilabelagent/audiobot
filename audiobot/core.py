@@ -38,6 +38,99 @@ class Bot:
         self.register("inspect", self._skill_inspect, "Inspect audio properties")
         self.register("download", self._skill_download, "Download video by URL (yt-dlp)")
         self.register("extract", self._skill_extract, "Extract audio track from media")
+        # Seed default presets if missing
+        try:
+            if not self.memory.get_preset("VERY_NOISY_VOX"):
+                self.memory.save_preset(
+                    "VERY_NOISY_VOX",
+                    {
+                        "preset": "very_noisy_vox",
+                        "noise_reduce": 12.0,
+                        "noise_floor": -28.0,
+                        "deess_center": 0.25,
+                        "deess_strength": 1.2,
+                        "highpass": 80,
+                        "lowpass": 18000,
+                        "limiter": 0.95,
+                        "gate": True,
+                        "air_bus": True,
+                        "air_mix": 0.2,
+                        "declick": True,
+                        "declip": True,
+                        "post_deess_center": 0.35,
+                        "post_deess_strength": 0.0,
+                    },
+                )
+            if not self.memory.get_preset("LOUD_SLAM"):
+                self.memory.save_preset(
+                    "LOUD_SLAM",
+                    {
+                        "preset": "very_noisy_vox",
+                        "noise_reduce": 10.0,
+                        "noise_floor": -30.0,
+                        "deess_center": 0.28,
+                        "deess_strength": 1.3,
+                        "highpass": 90,
+                        "lowpass": 18000,
+                        "limiter": 0.99,
+                        "gate": True,
+                        "air_bus": True,
+                        "air_mix": 0.22,
+                        "declick": True,
+                        "declip": True,
+                        "post_deess_center": 0.35,
+                        "post_deess_strength": 0.6,
+                    },
+                )
+            if not self.memory.get_preset("VERY_LOUD_CRISPY"):
+                self.memory.save_preset(
+                    "VERY_LOUD_CRISPY",
+                    {
+                        "preset": "very_loud_crispy",
+                        "noise_reduce": 8.0,
+                        "noise_floor": -30.0,
+                        "deess_center": 0.28,
+                        "deess_strength": 1.3,
+                        "highpass": 90,
+                        "lowpass": 20000,
+                        "limiter": 0.99,
+                        "gate": True,
+                        "air_bus": True,
+                        "air_mix": 0.25,
+                        "declick": True,
+                        "declip": True,
+                        "post_deess_center": 0.35,
+                        "post_deess_strength": 0.4,
+                    },
+                )
+            if not self.memory.get_preset("MAX_LOUDNESS"):
+                self.memory.save_preset(
+                    "MAX_LOUDNESS",
+                    {
+                        "preset": "max_loudness",
+                        "noise_reduce": 8.0,
+                        "noise_floor": -32.0,
+                        "deess_center": 0.30,
+                        "deess_strength": 1.4,
+                        "highpass": 100,
+                        "lowpass": 20000,
+                        "limiter": 0.99,
+                        "gate": True,
+                        "gate_thresh_db": -45.0,
+                        "air_bus": True,
+                        "air_mix": 0.30,
+                        "air_highpass_hz": 10000,
+                        "air_shelf_gain_db": 4.0,
+                        "air_deess_strength": 1.6,
+                        "declick": True,
+                        "declip": True,
+                        "post_deess_center": 0.35,
+                        "post_deess_strength": 0.7,
+                    },
+                )
+        except Exception:
+            # Preset seeding is best-effort; ignore DB errors here
+            pass
         self.register("transcribe", self._skill_transcribe, "Transcribe audio with Google Speech-to-Text")
         self.register("denoise", self._skill_denoise, "ML denoiser inference (PyTorch/ONNX)")
 

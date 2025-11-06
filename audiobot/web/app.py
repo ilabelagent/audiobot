@@ -15,6 +15,7 @@ from fastapi.templating import Jinja2Templates
 from audiobot.config import SETTINGS
 import requests  # type: ignore
 from audiobot.core import Bot
+from pathlib import Path
 from audiobot.memory import Memory
 from audiobot.ai import Advisor
 from audiobot.processing.clean import clean_audio as py_clean_audio
@@ -156,6 +157,15 @@ async def api_advice(file: UploadFile | None = File(default=None), context: str 
     return {"ok": True, "source": a.source, "params": a.params, "notes": a.notes}
 
 
+@app.post("/api/transcribe")
+async def api_transcribe(file: UploadFile = File(...)):
+    bot = Bot()
+    tmp = UPLOADS_DIR / "transcribe_input.wav"
+    tmp.write_bytes(await file.read())
+    res = bot.skills["transcribe"].run(tmp)
+    return {"ok": res.get("ok"), "transcript": res.get("transcript"), "log": res.get("log")}
+
+
 @app.post("/process")
 async def process(
     request: Request,
@@ -167,12 +177,34 @@ async def process(
     highpass: int = Form(70),
     lowpass: int = Form(18000),
     limiter: float = Form(0.95),
+    # new: advanced preset + AIR controls
+    preset: str = Form("") ,
+    gate: bool = Form(True),
+    gate_thresh_db: float = Form(-45.0),
+    air_bus: bool = Form(False),
+    air_mix: float = Form(0.2),
+    air_highpass_hz: int = Form(9500),
+    air_shelf_gain_db: float = Form(3.0),
+    air_deess_strength: float = Form(2.0),
+    declick: bool = Form(True),
+    declip: bool = Form(True),
+    post_deess_center: float = Form(0.35),
+    post_deess_strength: float = Form(0.0),
+    # ML denoiser controls
+    ml_enable: bool = Form(False),
+    ml_model: str = Form(""),
+    ml_sample_rate: int = Form(48000),
+    ml_chunk_seconds: float = Form(1.0),
+    ml_overlap: float = Form(0.1),
+    ml_device: str = Form(""),
     keep_float: bool = Form(False),
     fast_mode: bool = Form(False),
     download: bool = Form(False),
 ):
     bot = Bot()
     results = []
+    # Resolve DB presets when requested
+    selected_preset = (preset or "").strip()
     for f in files:
         raw = await f.read()
         in_name = f.filename or "input.wav"
@@ -180,6 +212,42 @@ async def process(
         out_name = f"{Path(in_name).stem}_clean.wav"
         out_path = OUTPUTS_DIR / out_name
         in_path.write_bytes(raw)
+        # ML denoiser path (takes precedence if enabled and model provided)
+        if ml_enable and ml_model.strip():
+            den_out = OUTPUTS_DIR / f"{Path(in_name).stem}_denoised.wav"
+            try:
+                res = Bot().skills["denoise"].run(
+                    in_path,
+                    den_out,
+                    model_path=ml_model.strip(),
+                    sample_rate=int(ml_sample_rate),
+                    chunk_seconds=float(ml_chunk_seconds),
+                    overlap_seconds=float(ml_overlap),
+                    device=(ml_device.strip() or None),
+                )
+                ok = bool(res.get("ok"))
+                log = str(res.get("log", ""))
+                results.append({
+                    "input": in_name,
+                    "ok": ok,
+                    "output": den_out.name if ok else None,
+                    "log": log,
+                })
+                continue
+            except Exception as e:
+                results.append({"input": in_name, "ok": False, "output": None, "log": f"ML denoise error: {e}"})
+                continue
+
+        # Require ffmpeg when a preset is requested
+        if (selected_preset and not shutil.which("ffmpeg")):
+            results.append({
+                "input": in_name,
+                "ok": False,
+                "output": None,
+                "log": "ffmpeg not available; presets require ffmpeg. Install ffmpeg and try again.",
+            })
+            continue
+
         # Prefer ffmpeg chain if available; otherwise fallback to Python DSP cleaner
         if shutil.which("ffmpeg"):
             params = dict(
@@ -190,7 +258,26 @@ async def process(
                 highpass=int(highpass),
                 lowpass=int(lowpass),
                 limiter=float(limiter),
+                preset=selected_preset or None,
+                gate=bool(gate),
+                gate_thresh_db=float(gate_thresh_db),
+                air_bus=bool(air_bus),
+                air_mix=float(air_mix),
+                air_highpass_hz=int(air_highpass_hz),
+                air_shelf_gain_db=float(air_shelf_gain_db),
+                air_deess_strength=float(air_deess_strength),
+                declick=bool(declick),
+                declip=bool(declip),
+                post_deess_center=float(post_deess_center),
+                post_deess_strength=float(post_deess_strength),
             )
+            # If a DB preset is chosen (value like "db:NAME"), merge stored params
+            if selected_preset.lower().startswith("db:"):
+                from audiobot.memory import Memory
+                name = selected_preset.split(":",1)[1]
+                dbp = Memory().get_preset(name)
+                if isinstance(dbp, dict) and dbp:
+                    params.update(dbp)
             if fast_mode:
                 # Lighter, faster defaults tuned for speed and transparency
                 params["noise_reduce"] = min(params["noise_reduce"], 6.0)
@@ -243,6 +330,38 @@ async def separate(request: Request, file: UploadFile = File(...), model: str = 
         "log": str(res.get("log", ""))[-2000:],
     }
     return templates.TemplateResponse("result.html", {"request": request, "results": [out]})
+
+
+@app.post("/download-audio")
+async def download_audio(request: Request, url: str = Form(...), separate: bool = Form(False)):
+    bot = Bot()
+    # Step 1: download to uploads
+    d = bot.skills["download"].run(url, UPLOADS_DIR)
+    if not d.get("ok") or not d.get("path"):
+        return templates.TemplateResponse(
+            "result.html",
+            {"request": request, "results": [{"input": url, "ok": False, "log": d.get("log", "download failed")} ]},
+        )
+    src = Path(str(d["path"]))
+    # Step 2: extract to outputs
+    wav = OUTPUTS_DIR / f"{src.stem}.wav"
+    e = bot.skills["extract"].run(src, wav)
+    if not e.get("ok"):
+        return templates.TemplateResponse(
+            "result.html",
+            {"request": request, "results": [{"input": url, "ok": False, "log": e.get("log", "extract failed")} ]},
+        )
+    results = [{"input": url, "ok": True, "output": wav.name, "log": str(e.get("log", ""))[-2000:]}]
+    # Step 3 (optional): stems
+    if separate:
+        res = bot.skills["separate"].run(wav, OUTPUTS_DIR)
+        results.append({
+            "input": wav.name,
+            "ok": bool(res.get("ok")),
+            "stems": res.get("stems", []),
+            "log": str(res.get("log", ""))[-2000:],
+        })
+    return templates.TemplateResponse("result.html", {"request": request, "results": results})
 
 
 @app.post("/batch")

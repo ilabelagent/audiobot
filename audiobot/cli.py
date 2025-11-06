@@ -38,6 +38,7 @@ def cmd_clean(args: argparse.Namespace) -> int:
             "air_bus": args.air_bus,
             "air_mix": args.air_mix,
             "gate": (not args.no_gate),
+            "gate_thresh_db": args.gate_thresh_db,
             # conservative base values; user can adjust later if needed
             "noise_reduce": 12.0,
             "noise_floor": -28.0,
@@ -48,7 +49,19 @@ def cmd_clean(args: argparse.Namespace) -> int:
             "limiter": 0.95,
             "declick": (not args.no_declick),
             "declip": (not args.no_declip),
+            "air_highpass_hz": args.air_highpass,
+            "air_shelf_gain_db": args.air_shelf_db,
+            "air_deess_strength": args.air_deess_strength,
+            "post_deess_center": args.post_deess_center,
+            "post_deess_strength": args.post_deess_strength,
         }
+        # Support DB presets via --preset db:NAME
+        if str(args.preset).lower().startswith("db:"):
+            from .memory import Memory
+            name = str(args.preset).split(":",1)[1]
+            dbp = Memory().get_preset(name)
+            if isinstance(dbp, dict) and dbp:
+                params.update(dbp)
         res = bot.skills["clean"].run(inp, out, args.keep_float, **params)
         if not res.get("ok"):
             print("FFmpeg preset clean failed:", res.get("log", ""))
@@ -82,6 +95,36 @@ def cmd_batch(args: argparse.Namespace) -> int:
             if not res.get("ok"):
                 print("ML denoise failed for", p, ":", res.get("log", ""))
                 continue
+        elif getattr(args, "preset", ""):
+            bot = Bot()
+            params = {
+                "preset": args.preset,
+                "air_bus": args.air_bus,
+                "air_mix": args.air_mix,
+                "gate": (not args.no_gate),
+                "gate_thresh_db": args.gate_thresh_db,
+                "noise_reduce": 12.0,
+                "noise_floor": -28.0,
+                "deess_center": 0.25,
+                "deess_strength": 1.2,
+                "highpass": 70,
+                "lowpass": 18000,
+                "limiter": 0.95,
+                "declick": (not args.no_declick),
+                "declip": (not args.no_declip),
+                "air_highpass_hz": args.air_highpass,
+                "air_shelf_gain_db": args.air_shelf_db,
+                "air_deess_strength": args.air_deess_strength,
+                "post_deess_center": args.post_deess_center,
+                "post_deess_strength": args.post_deess_strength,
+            }
+            if str(args.preset).lower().startswith("db:"):
+                from .memory import Memory
+                name = str(args.preset).split(":",1)[1]
+                dbp = Memory().get_preset(name)
+                if isinstance(dbp, dict) and dbp:
+                    params.update(dbp)
+            bot.skills["clean"].run(p, dest, args.keep_float, **params)
         else:
             clean_audio(str(p), str(dest), target_lufs=args.lufs, deess=not args.no_deess)
         count += 1
@@ -135,9 +178,15 @@ def build_parser() -> argparse.ArgumentParser:
     pc.add_argument("--lufs", type=float, default=-14.0)
     pc.add_argument("--no-deess", action="store_true")
     # FFmpeg preset path (optional)
-    pc.add_argument("--preset", type=str, default="", help="FFmpeg preset: very_noisy_vox")
+    pc.add_argument("--preset", type=str, default="", help="FFmpeg preset: very_noisy_vox, very_loud_crispy, max_loudness or db:NAME")
     pc.add_argument("--air-bus", action="store_true", help="Enable AIR parallel bus (with --preset)")
     pc.add_argument("--air-mix", type=float, default=0.2, help="AIR bus mix 0..1 (with --preset)")
+    pc.add_argument("--gate-thresh-db", type=float, default=-45.0, help="Gate threshold dB (preset)")
+    pc.add_argument("--air-highpass", type=int, default=9500, help="AIR highpass Hz (preset)")
+    pc.add_argument("--air-shelf-db", type=float, default=3.0, help="AIR shelf gain dB (preset)")
+    pc.add_argument("--air-deess-strength", type=float, default=2.0, help="AIR de-ess strength 0..2 (preset)")
+    pc.add_argument("--post-deess-center", type=float, default=0.35, help="Post-mix de-ess center 0..1")
+    pc.add_argument("--post-deess-strength", type=float, default=0.0, help="Post-mix de-ess strength 0..2")
     pc.add_argument("--no-gate", action="store_true", help="Disable gate in preset chain")
     pc.add_argument("--no-declick", action="store_true", help="Disable adeclick in preset chain")
     pc.add_argument("--no-declip", action="store_true", help="Disable adeclip in preset chain")
@@ -155,9 +204,15 @@ def build_parser() -> argparse.ArgumentParser:
     pb.add_argument("-o", "--output", required=True)
     pb.add_argument("--lufs", type=float, default=-14.0)
     pb.add_argument("--no-deess", action="store_true")
-    pb.add_argument("--preset", type=str, default="", help="FFmpeg preset: very_noisy_vox")
+    pb.add_argument("--preset", type=str, default="", help="FFmpeg preset: very_noisy_vox, very_loud_crispy, max_loudness or db:NAME")
     pb.add_argument("--air-bus", action="store_true")
     pb.add_argument("--air-mix", type=float, default=0.2)
+    pb.add_argument("--gate-thresh-db", type=float, default=-45.0)
+    pb.add_argument("--air-highpass", type=int, default=9500)
+    pb.add_argument("--air-shelf-db", type=float, default=3.0)
+    pb.add_argument("--air-deess-strength", type=float, default=2.0)
+    pb.add_argument("--post-deess-center", type=float, default=0.35)
+    pb.add_argument("--post-deess-strength", type=float, default=0.0)
     pb.add_argument("--no-gate", action="store_true")
     pb.add_argument("--no-declick", action="store_true")
     pb.add_argument("--no-declip", action="store_true")
