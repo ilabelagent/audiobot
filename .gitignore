@@ -1,0 +1,131 @@
+__pycache__/
+.venv/
+.env
+*.env
+logs/
+dist/
+build/
+*.egg-info/
+*.tmp
+*.bak
+*.log
+outputs/
+artifacts/
+/.pytest_cache/
+/.mypy_cache/
+/.ruff_cache/
+presets/
+models/
+
+# User content
+data/verses.txt
+
+# Large media & archives (keep repo lean)
+*.wav
+*.aif
+*.aiff
+*.flac
+*.mp3
+*.m4a
+*.zip
+*.tgz
+*.tar
+*.gz
+*.7z
+
+# Sensitive cloud keys (use env var paths instead)
+*service_account*.json
+*credentials*.json
+audiobot/peaceful-access-*.json
+# FL Studio (optional — comment/uncomment as needed)
+# Ignore heavy audio exports if you don’t want them in Git
+# FL STUDIO/*/renders/
+# FL STUDIO/*/stems/
+# FL STUDIO/*/zipped_loop_packages/
+
+# --- added ignores ---
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage*
+
+# Editors/OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Environments
+.env
+.env.*
+env/
+venv/
+.venv/
+
+# Builds
+/dist/
+/build/
+*.egg-info/
+
+# Logs and caches
+/logs/
+*.log
+/lightning_logs/
+/.cache/
+/.work/
+
+# App runtime data
+/data/
+/data/audiobot.db
+/web/uploads/
+/web/outputs/
+
+# Models & checkpoints
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.npz
+*.npy
+*.pkl
+
+# Large media
+*.wav
+*.aiff
+*.aif
+*.flac
+*.mp3
+*.m4a
+*.ogg
+*.wma
+*.mp4
+*.mov
+*.mkv
+*.avi
+
+# Archives
+*.zip
+*.7z
+*.rar
+*.tar
+*.tar.gz
+*.zpa
+
+# Local project folders
+2daysv2/
+ABLETON/
+FL STUDIO/
+LOGIC PRO X/
+PRO TOOLS/
+SLATE PLUGIN INDIVIDUAL PRESETS/
+STUDIO ONE/
+
+# Credentials
+peaceful-access-*.json
+*.pem
+*.p12

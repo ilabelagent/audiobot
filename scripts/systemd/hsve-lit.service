@@ -1,0 +1,13 @@
+[Unit]
+Description=HSVE Lite Agent Web
+After=network.target
+
+[Service]
+WorkingDirectory=%h/jesus-cartel-production
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/bin/bash -lc 'source ~/miniconda3/etc/profile.d/conda.sh && conda run -n audio uvicorn web.litserve_app:app --host 0.0.0.0 --port 8080'
+Restart=always
+
+[Install]
+WantedBy=default.target
+
