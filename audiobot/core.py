@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
 from .memory import Memory
-from .skills import build_filter_chain, clean_audio, separate_stems, analyze_audio, download_video as skill_download_video, extract_audio as skill_extract_audio, transcribe_audio
+from .skills import build_filter_chain, clean_audio, separate_stems, analyze_audio, transcribe_audio
 from .sync.gcs import upload_if_configured
 from .sync.ipfs import pin_file
 
@@ -36,8 +36,8 @@ class Bot:
         self.register("clean", self._skill_clean, "Clean audio with FFmpeg filters")
         self.register("separate", self._skill_separate, "Separate stems with Demucs")
         self.register("inspect", self._skill_inspect, "Inspect audio properties")
-        self.register("download", self._skill_download, "Download video by URL (yt-dlp)")
-        self.register("extract", self._skill_extract, "Extract audio track from media")
+        # self.register("download", self._skill_download, "Download video by URL (yt-dlp)")
+        # self.register("extract", self._skill_extract, "Extract audio track from media")
         # Seed default presets if missing
         try:
             if not self.memory.get_preset("VERY_NOISY_VOX"):
@@ -248,21 +248,21 @@ class Bot:
         self.memory.record_job("inspect", str(input_path), "", {}, True)
         return res
 
-    def _skill_download(self, url: str, out_dir: Optional[Path] = None) -> Dict[str, Any]:
-        out = Path(out_dir or Path("web") / "uploads")
-        res = skill_download_video(url, out)
-        ok = bool(res.get("ok"))
-        path = res.get("path") or ""
-        self.memory.record_job("download", url, path, {}, ok)
-        return {"ok": ok, "path": path, "log": res.get("log", "")}
+    # def _skill_download(self, url: str, out_dir: Optional[Path] = None) -> Dict[str, Any]:
+    #     out = Path(out_dir or Path("web") / "uploads")
+    #     res = skill_download_video(url, out)
+    #     ok = bool(res.get("ok"))
+    #     path = res.get("path") or ""
+    #     self.memory.record_job("download", url, path, {}, ok)
+    #     return {"ok": ok, "path": path, "log": res.get("log", "")}
 
-    def _skill_extract(self, input_path: Path, output_path: Optional[Path] = None, samplerate: int = 48000, stereo: bool = True) -> Dict[str, Any]:
-        input_path = Path(input_path)
-        output_path = Path(output_path) if output_path else input_path.with_suffix(".wav")
-        proc = skill_extract_audio(input_path, output_path, samplerate=samplerate, stereo=stereo)
-        ok = output_path.exists() and output_path.stat().st_size > 0 and proc.returncode == 0
-        self.memory.record_job("extract", str(input_path), str(output_path), {"samplerate": samplerate, "stereo": stereo}, ok)
-        return {"ok": ok, "output": str(output_path) if ok else None, "log": proc.stdout}
+    # def _skill_extract(self, input_path: Path, output_path: Optional[Path] = None, samplerate: int = 48000, stereo: bool = True) -> Dict[str, Any]:
+    #     input_path = Path(input_path)
+    #     output_path = Path(output_path) if output_path else input_path.with_suffix(".wav")
+    #     proc = skill_extract_audio(input_path, output_path, samplerate=samplerate, stereo=stereo)
+    #     ok = output_path.exists() and output_path.stat().st_size > 0 and proc.returncode == 0
+    #     self.memory.record_job("extract", str(input_path), str(output_path), {"samplerate": samplerate, "stereo": stereo}, ok)
+    #     return {"ok": ok, "output": str(output_path) if ok else None, "log": proc.stdout}
 
     def _skill_transcribe(self, input_path: Path) -> Dict[str, Any]:
         input_path = Path(input_path)
